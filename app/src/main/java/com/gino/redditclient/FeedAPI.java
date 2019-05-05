@@ -16,10 +16,14 @@ import retrofit2.http.Query;
 public interface FeedAPI {
 
     String BASE_URL = "https://www.reddit.com/r/";
-
+/*
     //Non-static feed name
     @GET("{feed_name}/.rss")
-    Call<Feed> getFeed(@Path("feed_name") String feed_name);
+    Call<Feed> getFeed(@Path("feed_name") String feed_name);*/
+
+    //Non-static feed name
+    @GET("/.rss")
+    Call<Feed> getFeed();
 
 
     @POST("{user}")

@@ -131,7 +131,7 @@ public class CommentsActivity extends AppCompatActivity {
 
         FeedAPI feedAPI = retrofit.create(FeedAPI.class);
 
-        Call<Feed> call = feedAPI.getFeed(currentFeed);
+        Call<Feed> call = feedAPI.getFeed();
 
         call.enqueue(new Callback<Feed>() {
             @Override

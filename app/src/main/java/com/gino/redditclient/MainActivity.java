@@ -14,6 +14,7 @@ import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
+import androidx.coordinatorlayout.widget.CoordinatorLayout;
 
 import com.gino.redditclient.Account.LoginActivity;
 import com.gino.redditclient.Comments.CommentsActivity;
@@ -36,8 +37,8 @@ public class MainActivity extends AppCompatActivity {
 
     private Button btnRefreshFeed;
     private EditText mFeedName;
-    private String currentFeed;
-
+    private String currentFeed = "android";
+    private CoordinatorLayout mCoordinatorLayout;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -96,84 +97,87 @@ public class MainActivity extends AppCompatActivity {
 
         FeedAPI feedAPI = retrofit.create(FeedAPI.class);
 
-        Call<Feed> call = feedAPI.getFeed(currentFeed);
+        Call<Feed> call = feedAPI.getFeed();
 
         call.enqueue(new Callback<Feed>() {
             @Override
             public void onResponse(Call<Feed> call, Response<Feed> response) {
                 Log.d(TAG, "onResponse: Server Response: " + response.toString());
 
-                List<Entry> entrys = response.body().getEntrys();
+                if (!response.body().getEntrys().isEmpty()) {
+                    List<Entry> entrys = response.body().getEntrys();
 
-                Log.d(TAG, "onResponse: entrys: " + response.body().getEntrys());
-
-
-                final ArrayList<Post> posts = new ArrayList<Post>();
-                for (int i = 0; i < entrys.size(); i++) {
-                    ExtractXML extractXML1 = new ExtractXML(entrys.get(i).getContent(), "<a href=");
-                    List<String> postContent = extractXML1.start();
+                    Log.d(TAG, "onResponse: entrys: " + response.body().getEntrys());
 
 
-                    ExtractXML extractXML2 = new ExtractXML(entrys.get(i).getContent(), "<img src=");
+                    final ArrayList<Post> posts = new ArrayList<Post>();
+                    for (int i = 0; i < entrys.size(); i++) {
+                        ExtractXML extractXML1 = new ExtractXML(entrys.get(i).getContent(), "<a href=");
+                        List<String> postContent = extractXML1.start();
 
-                    try {
-                        postContent.add(extractXML2.start().get(0));
-                    } catch (NullPointerException e) {
-                        postContent.add(null);
-                        Log.e(TAG, "onResponse: NullPointerException(thumbnail):" + e.getMessage());
-                    } catch (IndexOutOfBoundsException e) {
-                        postContent.add(null);
-                        Log.e(TAG, "onResponse: IndexOutOfBoundsException(thumbnail):" + e.getMessage());
+
+                        ExtractXML extractXML2 = new ExtractXML(entrys.get(i).getContent(), "<img src=");
+
+                        try {
+                            postContent.add(extractXML2.start().get(0));
+                        } catch (NullPointerException e) {
+                            postContent.add(null);
+                            Log.e(TAG, "onResponse: NullPointerException(thumbnail):" + e.getMessage());
+                        } catch (IndexOutOfBoundsException e) {
+                            postContent.add(null);
+                            Log.e(TAG, "onResponse: IndexOutOfBoundsException(thumbnail):" + e.getMessage());
+                        }
+
+                        int lastPosition = postContent.size() - 1;
+                        try {
+                            posts.add(new Post(
+                                    entrys.get(i).getTitle(),
+                                    entrys.get(i).getAuthor().getName(),
+                                    entrys.get(i).getUpdated(),
+                                    postContent.get(0),
+                                    postContent.get(lastPosition),
+                                    entrys.get(i).getId()
+                            ));
+                        } catch (NullPointerException e) {
+                            posts.add(new Post(
+                                    entrys.get(i).getTitle(),
+                                    "None",
+                                    entrys.get(i).getUpdated(),
+                                    postContent.get(0),
+                                    postContent.get(lastPosition),
+                                    entrys.get(i).getId()
+                            ));
+                            Log.e(TAG, "onResponse: NullPointerException: " + e.getMessage());
+                        }
+
                     }
 
-                    int lastPosition = postContent.size() - 1;
-                    try {
-                        posts.add(new Post(
-                                entrys.get(i).getTitle(),
-                                entrys.get(i).getAuthor().getName(),
-                                entrys.get(i).getUpdated(),
-                                postContent.get(0),
-                                postContent.get(lastPosition),
-                                entrys.get(i).getId()
-                        ));
-                    } catch (NullPointerException e) {
-                        posts.add(new Post(
-                                entrys.get(i).getTitle(),
-                                "None",
-                                entrys.get(i).getUpdated(),
-                                postContent.get(0),
-                                postContent.get(lastPosition),
-                                entrys.get(i).getId()
-                        ));
-                        Log.e(TAG, "onResponse: NullPointerException: " + e.getMessage());
-                    }
 
+                    ListView listView = (ListView) findViewById(R.id.listView);
+                    CustomListAdapter customListAdapter = new CustomListAdapter(MainActivity.this, R.layout.card_layout_main, posts);
+                    listView.setAdapter(customListAdapter);
+
+                    listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+                        @Override
+                        public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+                            Log.d(TAG, "onItemClick: Clicked: " + posts.get(position).toString());
+                            Intent intent = new Intent(MainActivity.this, CommentsActivity.class);
+                            intent.putExtra("@string/post_url", posts.get(position).getPostURL());
+                            intent.putExtra("@string/post_thumbnail", posts.get(position).getThumbnailURL());
+                            intent.putExtra("@string/post_title", posts.get(position).getTitle());
+                            intent.putExtra("@string/post_author", posts.get(position).getAuthor());
+                            intent.putExtra("@string/post_updated", posts.get(position).getDate_updated());
+                            intent.putExtra("@string/post_id", posts.get(position).getId());
+                            startActivity(intent);
+                        }
+                    });
                 }
-
-                ListView listView = (ListView) findViewById(R.id.listView);
-                CustomListAdapter customListAdapter = new CustomListAdapter(MainActivity.this, R.layout.card_layout_main, posts);
-                listView.setAdapter(customListAdapter);
-
-                listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
-                    @Override
-                    public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-                        Log.d(TAG, "onItemClick: Clicked: " + posts.get(position).toString());
-                        Intent intent = new Intent(MainActivity.this, CommentsActivity.class);
-                        intent.putExtra("@string/post_url", posts.get(position).getPostURL());
-                        intent.putExtra("@string/post_thumbnail", posts.get(position).getThumbnailURL());
-                        intent.putExtra("@string/post_title", posts.get(position).getTitle());
-                        intent.putExtra("@string/post_author", posts.get(position).getAuthor());
-                        intent.putExtra("@string/post_updated", posts.get(position).getDate_updated());
-                        intent.putExtra("@string/post_id", posts.get(position).getId());
-                        startActivity(intent);
-                    }
-                });
             }
 
             @Override
             public void onFailure(Call<Feed> call, Throwable t) {
                 Log.e(TAG, "onFailure: Unable to retrieve RSS: " + t.getMessage());
-                Toast.makeText(MainActivity.this, "An Error Occured", Toast.LENGTH_SHORT).show();
+                Toast.makeText(MainActivity.this, "An Error Occured" , Toast.LENGTH_SHORT).show();
 
             }
         });
